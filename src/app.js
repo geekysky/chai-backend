@@ -15,7 +15,6 @@ app.use(cookieParser());
 
 //routes
 import userRouter from "./routes/user.routes.js";
-
 //routes declaration
 
 //what happens now is whenever a url is hit
@@ -25,7 +24,7 @@ import userRouter from "./routes/user.routes.js";
 //console.log("✅ userRouter loaded:", userRouter);
 app.post("/test", (req, res) => res.send("POST /test works"));
 
-app.use("/api/v1/users",userRouter)
-
+app.use("/api/v1/users",userRouter);
+app.use("/api/v1/users",userRouter);
 
 export default app;
