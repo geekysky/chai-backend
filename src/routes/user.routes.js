@@ -1,6 +1,6 @@
 import { Router } from "express";
-import {registerUser,loginUser} from "../controllers/user.controller.js";
-import {upload} from "../middleware/multer.middleware.js";
+import { registerUser, loginUser } from "../controllers/user.controller.js";
+import { upload } from "../middleware/multer.middleware.js";
 const router = Router();
 
 // registerUser method execute karne k pehle multer ka middleware run karwa dena 

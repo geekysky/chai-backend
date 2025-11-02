@@ -49,6 +49,9 @@ export const registerUser = asynchandler(async (req,res)=>{
 
     // this ? is used like for when the action/object is found or not...like it's doubtful 
     // ye Local Paths ho bhi sakte hai and nahi bhi...gurantee nahi hai 
+
+    console.log(req.files);
+    
     const avatarLocalPath = req.files?.avatar[0]?.path;
     const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
