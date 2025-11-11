@@ -68,6 +68,7 @@ userSchema.pre("save", async function (next) {
 });
 
 userSchema.methods.isPasswordCorrect = async function(password){
+    // input m req se jo password aaya hai vo hai and db ka password is this.password
     return await bcrypt.compare(password,this.password);
 }
 

@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { registerUser, loginUser } from "../controllers/user.controller.js";
+import { registerUser, loginUser, logoutUser } from "../controllers/user.controller.js";
 import { upload } from "../middleware/multer.middleware.js";
+import { verifyJWT } from "../middleware/auth.middleware.js";
 const router = Router();
 
 // registerUser method execute karne k pehle multer ka middleware run karwa dena 
@@ -17,5 +18,10 @@ router.route("/register").post(
     ]),
     registerUser);
 
-router.route("/login").get(loginUser);
+router.route("/login").post(loginUser);
+
+//securd routes
+
+//verifyJWT is a middleware 
+router.route("/logout").post(verifyJWT,logoutUser)
 export default router;
