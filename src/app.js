@@ -25,6 +25,5 @@ import userRouter from "./routes/user.routes.js";
 app.post("/test", (req, res) => res.send("POST /test works"));
 
 app.use("/api/v1/users",userRouter);
-app.use("/api/v1/users",userRouter);
 
 export default app;

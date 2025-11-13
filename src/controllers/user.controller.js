@@ -4,6 +4,7 @@ import { User } from "../model/user.model.js";
 import { upload } from "../middleware/multer.middleware.js";
 import { uploadonCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/Apiresponse.js";
+import jwt from "jsonwebtoken";
 
 // requires mondoDB's document _id as a parameter
 async function generateAccessAndRefreshTokens(userId) {
@@ -127,7 +128,7 @@ export const loginUser = asynchandler(async (req, res) => {
 
     const { email, username, password } = req.body;
 
-    if (!username || !email) {
+    if (!username && !email) {
         //both unavailable
         throw new Apierror(400, "Username or email is required");
     }
@@ -150,9 +151,7 @@ export const loginUser = asynchandler(async (req, res) => {
 
     const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
 
-    user.refreshToken = refreshToken;
-    user.select("-password -refreshToken");
-
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
 
     const options = {
         httpOnly: true,
@@ -164,7 +163,13 @@ export const loginUser = asynchandler(async (req, res) => {
         .cookie("accessToken", accessToken, options)
         .cookie("refreshToken", refreshToken, options)
         .json(
-            new ApiResponse(200, { user: user, accessToken, refreshToken }, "User logged in Successfully")
+            new ApiResponse(
+                200,
+                {
+                    user: loggedInUser, accessToken, refreshToken
+                },
+                "User logged In Successfully"
+            )
         );
 
 });
@@ -176,7 +181,7 @@ export const logoutUser = asynchandler(async (req, res) => {
 
     //at this point we have user details in req.user jo humne explicitly 
     //auth middleware m add kiya tha before executing this logout function 
-    
+
     //db se remove kar diya using the $ operator 
     await User.findByIdAndUpdate(req.user._id,
         {
@@ -184,7 +189,7 @@ export const logoutUser = asynchandler(async (req, res) => {
                 refreshToken: undefined
             }
         },
-        {   
+        {
             //new updated value dena hai and not old wala jaha p refresh token visible ho 
             new: true
         }
@@ -196,19 +201,61 @@ export const logoutUser = asynchandler(async (req, res) => {
     }
 
     return res
-    .status(200)
-    .clearCookie("accessToken",options)
-    .clearCookie("refreshToken",options)
-    .json(new ApiResponse(200,{},"User logged out!"));
+        .status(200)
+        .clearCookie("accessToken", options)
+        .clearCookie("refreshToken", options)
+        .json(new ApiResponse(200, {}, "User logged out!"));
 
-})
+});
 
+export const refreshAcessToken = asynchandler(async (req,res) =>{
+    //refresh token to chahiye 
+    //cookies m send kiye the...so cookies se access kar sakte hai 
 
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
-// export const loginUser = asynchandler(async(req,res)=> {
-//     res.status(200).json({
-//         message: "api successfully hit"
-//     });
-// });
+    if(!incomingRefreshToken){
+        throw new Apierror(401,"unauthorized request");
+    }
 
+    //verify karenge refresh toke ko 
 
+    try {
+        const decodedToken = await jwt.verify(incomingRefreshToken,process.env.REFRESH_TOKEN_SECRET);
+        //refresh token m humne explicitly _id daali thi user.model.js m so decoded token m vo rehna chahiye
+        //jwt token format - HEADER , PAYLOAD , SIGNATURE(SECRET)
+        // _id header m humne push karwaya tha 
+        
+        // _id se mongoDB se query karke information le sakte hai
+        const user = await User.findById(decodedToken?._id);
+    
+        if(!user){
+            throw new Apierror(404,"User Not Found");
+        }
+        
+        // dono encrypted hai -> check based on encrypted ones 
+        if(incomingRefreshToken !== user?.refreshToken){
+            throw new Apierror(401,"Refresh Token is Expired or used");
+        }
+        
+        //cookies m set karne k liye options 
+        const options = {
+            httpOnly: true,
+            secure: true
+        }
+        
+        // generate new tokens 
+        const {newAccessToken, newRefreshToken} = await generateAccessAndRefreshTokens(user._id);
+    
+        return res
+        .status(200)
+        .cookie("accessToken",newAccessToken,options)
+        .cookie("refreshToken",newRefreshToken,options)
+        .json(
+            new ApiResponse(200,{accessToken: newAccessToken,refreshToken: newRefreshToken},"Access Token refreshed!")
+        );
+    } catch (error) {
+        throw new Apierror(401,error?.message || "Invalid Refresh Token");
+    }
+
+});
