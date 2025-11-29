@@ -370,3 +370,80 @@ export const updateUserCoverImage = asynchandler(async (req,res) => {
     );
 
 });
+
+export const getUserChannelProfile = asynchandler(async (req,res) => {
+    const {username} = req.params;
+
+    if(!username?.trim()){
+        throw new Apierror(400, "Username is missing");
+    }
+    
+    // users collection se subscription m lookup ja raha hai...
+    const channel = await User.aggregate([
+        {
+            $match: {
+                username: username?.toLowerCase()
+            }
+        },
+        {   
+            // For each matched user, find all documents in the subscriptions collection where 
+            // subscriptions.channel === user._id. Attach the matching subscription docs as an array field named subscribers
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount : {
+                    $size: "$subscribers"
+                },
+                channelsSubscribedToCount : {
+                    $size: "$subscribedTo"
+                },
+                isSubscribed: {
+                    $condition: {
+                        // $subscribers ek field hai of users schema now also an object on it's own because of model
+                        // so $subscribers.subscriber m find kardo current user k request ka _id 
+                        if: {$in : [req.user?._id, "$subsribers.subscriber"]},
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                fullName: 1,
+                username: 1,
+                subscribersCount: 1,
+                channelsSubscribedToCount: 1,
+                isSubscribed: 1,
+                avatar: true,
+                coverImage: 1,
+                email: 1
+            }
+        }
+    ]);
+
+    // console.log(typeof(channel));
+    if(!channel?.length){
+        throw new Apierror(404,"channel does not exist");
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200,channel[0],"User channel fetched successfully!")
+    );
+});  
